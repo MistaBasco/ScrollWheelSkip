@@ -1,98 +1,88 @@
-// Initialize the players when the document is ready
-function initializePlayers() {
-  let youtubePlayer;
-  let vimeoPlayer;
-  let jwPlayerInstance;
-
-  // YouTube Player Setup
-  if (document.querySelector('iframe[src*="youtube.com/embed"]')) {
-    const youtubeIframe = document.querySelector(
-      'iframe[src*="youtube.com/embed"]'
-    );
-    if (youtubeIframe.id) {
-      youtubePlayer = new YT.Player(youtubeIframe.id);
-    } else {
-      youtubeIframe.id = "youtube-player";
-      youtubePlayer = new YT.Player("youtube-player");
-    }
-  }
-
-  // Vimeo Player Setup
-  if (document.querySelector('iframe[src*="vimeo.com"]')) {
-    const vimeoIframe = document.querySelector('iframe[src*="vimeo.com"]');
-    vimeoPlayer = new Vimeo.Player(vimeoIframe);
-  }
-
-  // JW Player Setup
-  if (typeof jwplayer === "function") {
-    jwPlayerInstance = jwplayer(); // Get the first available JW Player instance
-  }
-
-  // Event listener for wheel actions
-  document.addEventListener("wheel", (event) => {
-    let target = event.target;
-
-    // Handle HTML5 Video Elements
-    if (target.tagName.toLowerCase() === "video") {
-      handleHTML5VideoScroll(target, event);
-    }
-    // Handle YouTube Player
-    else if (youtubePlayer && youtubePlayer.getIframe() === target) {
-      handleYouTubeScroll(youtubePlayer, event);
-    }
-    // Handle Vimeo Player
-    else if (vimeoPlayer && vimeoPlayer.element === target) {
-      handleVimeoScroll(vimeoPlayer, event);
-    }
-    // Handle JW Player
-    else if (
-      jwPlayerInstance &&
-      jwPlayerInstance.getContainer() ===
-        target.closest("#" + jwPlayerInstance.id)
-    ) {
-      handleJWPlayerScroll(jwPlayerInstance, event);
-    }
+document.addEventListener("DOMContentLoaded", () => {
+  // Monitor the DOM for added video elements
+  const observer = new MutationObserver((mutations) => {
+    mutations.forEach((mutation) => {
+      mutation.addedNodes.forEach((node) => {
+        if (node.nodeType === 1) {
+          // If the added node is a video or an iframe, initialize it
+          if (node.tagName.toLowerCase() === "video") {
+            // Direct video element
+            initializeHTML5Video(node);
+          } else if (node.tagName.toLowerCase() === "iframe") {
+            // Potential YouTube or Vimeo iframe
+            if (node.src.includes("youtube.com/embed")) {
+              initializeYouTubePlayer(node);
+            } else if (node.src.includes("vimeo.com")) {
+              initializeVimeoPlayer(node);
+            }
+          } else {
+            // Custom player case - check for video elements within
+            const video = node.querySelector("video");
+            if (video) {
+              initializeHTML5Video(video);
+            }
+          }
+        }
+      });
+    });
   });
-}
 
-// Handling scrolling for YouTube player
-function handleYouTubeScroll(player, event) {
-  if (event.deltaX > 0) {
-    player.seekTo(player.getCurrentTime() + 10, true);
-  } else if (event.deltaX < 0) {
-    player.seekTo(player.getCurrentTime() - 10, true);
+  // Start observing the document body for changes
+  observer.observe(document.body, { childList: true, subtree: true });
+
+  // Function to handle HTML5 video elements
+  function initializeHTML5Video(video) {
+    document.addEventListener("wheel", (event) => {
+      if (event.target === video || video.contains(event.target)) {
+        handleHTML5VideoScroll(video, event);
+      }
+    });
   }
-}
 
-// Handling scrolling for Vimeo player
-function handleVimeoScroll(player, event) {
-  player.getCurrentTime().then((currentTime) => {
+  // Handling YouTube player initialization
+  function initializeYouTubePlayer(iframe) {
+    const player = new YT.Player(iframe);
+    document.addEventListener("wheel", (event) => {
+      if (event.target === iframe || iframe.contains(event.target)) {
+        handleYouTubeScroll(player, event);
+      }
+    });
+  }
+
+  // Handling Vimeo player initialization
+  function initializeVimeoPlayer(iframe) {
+    const player = new Vimeo.Player(iframe);
+    document.addEventListener("wheel", (event) => {
+      if (event.target === iframe || iframe.contains(event.target)) {
+        handleVimeoScroll(player, event);
+      }
+    });
+  }
+
+  // Functions for scroll handling
+  function handleHTML5VideoScroll(video, event) {
     if (event.deltaX > 0) {
-      player.setCurrentTime(currentTime + 10);
+      video.currentTime += 10;
     } else if (event.deltaX < 0) {
-      player.setCurrentTime(currentTime - 10);
+      video.currentTime -= 10;
     }
-  });
-}
-
-// Handling scrolling for JW Player
-function handleJWPlayerScroll(player, event) {
-  const currentTime = player.getPosition();
-  if (event.deltaX > 0) {
-    player.seek(currentTime + 10);
-  } else if (event.deltaX < 0) {
-    player.seek(currentTime - 10);
   }
-}
 
-// Handling scrolling for HTML5 video element
-function handleHTML5VideoScroll(video, event) {
-  if (event.deltaX > 0) {
-    video.currentTime += 10;
-  } else if (event.deltaX < 0) {
-    video.currentTime -= 10;
+  function handleYouTubeScroll(player, event) {
+    if (event.deltaX > 0) {
+      player.seekTo(player.getCurrentTime() + 10, true);
+    } else if (event.deltaX < 0) {
+      player.seekTo(player.getCurrentTime() - 10, true);
+    }
   }
-}
 
-// Initialize players on document ready
-document.addEventListener("DOMContentLoaded", initializePlayers);
+  function handleVimeoScroll(player, event) {
+    player.getCurrentTime().then((currentTime) => {
+      if (event.deltaX > 0) {
+        player.setCurrentTime(currentTime + 10);
+      } else if (event.deltaX < 0) {
+        player.setCurrentTime(currentTime - 10);
+      }
+    });
+  }
+});
